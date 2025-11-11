@@ -1,0 +1,86 @@
+# execution-environment.yml for AWS m2 (with generic dependencies)
+version: 3
+
+images:
+  base_image:
+    name: ghcr.io/ansible-community/community-ee-base:latest
+
+dependencies:
+  galaxy: |
+    collections:
+      # AWS-specific collections
+      - name: amazon.aws
+      - name: community.aws
+      
+      # Generic collections from m1
+      - name: ansible.netcommon
+      - name: ansible.posix
+      - name: ansible.windows
+      - name: cisco.aci
+      - name: cisco.dnac
+      - name: cisco.ios
+      - name: cisco.nxos
+      - name: community.docker
+      - name: community.fortios
+      - name: community.general
+      - name: community.grafana
+      - name: community.hashi_vault
+      - name: community.kubernetes
+      - name: community.mysql
+      - name: community.network
+      - name: community.postgresql
+      - name: community.vmware
+      - name: community.windows
+      - name: dellemc.openmanage
+      - name: f5networks.f5_modules
+      - name: fortinet.fortimanager
+      - name: fortinet.fortios
+      - name: google.cloud
+      - name: junipernetworks.junos
+      - name: kubernetes.core
+      - name: netapp.ontap
+      - name: netbox.netbox
+      - name: openstack.cloud
+      - name: purestorage.flasharray
+      - name: purestorage.flashblade
+      - name: servicenow.itsm
+      - name: theforeman.foreman
+      - name: vmware.vmware_rest
+      - name: vyos.vyos
+      
+      # NEW generic collections added for m2 (from non_azure_aws_dependencies.json)
+      - name: ansible.utils
+      - name: cisco.iosxr
+      - name: cisco.meraki
+      - name: community.proxmox
+      - name: containers.podman
+      - name: hetzner.hcloud
+      - name: ovirt.ovirt
+      - name: vultr.cloud
+  python: |
+    ansible-lint
+    boto3
+    botocore
+    py-pure-client
+
+additional_build_steps:
+  prepend_base: |
+    # Build prerequisites for ansible-pylibssh and other compiled deps
+    RUN dnf install -y \
+        python3-devel \
+        gcc \
+        libffi-devel \
+        openssl-devel \
+        libssh-devel \
+        make \
+        unzip \
+        curl && \
+        dnf clean all
+  append_final: |
+    # Install AWS CLI so AWS authentication works inside the EE
+    RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" && \
+        unzip -q /tmp/awscliv2.zip -d /tmp && \
+        /tmp/aws/install && \
+        rm -rf /tmp/aws /tmp/awscliv2.zip
+
+

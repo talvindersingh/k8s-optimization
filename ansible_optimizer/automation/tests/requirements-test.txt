@@ -1,0 +1,5 @@
+# Test Dependencies for MCP Server
+# Install with: pip install -r requirements-test.txt
+
+# MCP SDK (for client testing)
+mcp>=0.9.0

@@ -1,0 +1,89 @@
+# execution-environment.yml for Azure m2 (with generic dependencies)
+version: 3
+
+images:
+  base_image:
+    name: ghcr.io/ansible-community/community-ee-base:latest
+
+dependencies:
+  galaxy: |
+    collections:
+      # Azure-specific collections
+      - name: azure.azcollection
+        version: ">=3.9.0,<4.0.0"
+      - name: community.azure
+      
+      # Generic collections from m1
+      - name: ansible.netcommon
+      - name: ansible.posix
+      - name: ansible.windows
+      - name: cisco.aci
+      - name: cisco.dnac
+      - name: cisco.ios
+      - name: cisco.nxos
+      - name: community.crypto
+      - name: community.docker
+      - name: community.general
+      - name: community.grafana
+      - name: community.hashi_vault
+      - name: community.mysql
+      - name: community.postgresql
+      - name: community.proxmox
+      - name: community.vmware
+      - name: community.windows
+      - name: dellemc.openmanage
+      - name: fortinet.fortimanager
+      - name: fortinet.fortios
+      - name: google.cloud
+      - name: kubernetes.core
+      - name: netapp.ontap
+      - name: openstack.cloud
+      - name: purestorage.flasharray
+      - name: theforeman.foreman
+      - name: vmware.vmware_rest
+      - name: vyos.vyos
+      
+      # NEW generic collections added for m2 (from non_azure_aws_dependencies.json)
+      - name: ansible.utils
+      - name: cisco.iosxr
+      - name: cisco.meraki
+      - name: community.network
+      - name: containers.podman
+      - name: f5networks.f5_modules
+      - name: hetzner.hcloud
+      - name: junipernetworks.junos
+      - name: netbox.netbox
+      - name: ovirt.ovirt
+      - name: purestorage.flashblade
+      - name: servicenow.itsm
+      - name: vultr.cloud
+  python: |
+    ansible-lint
+    azure-identity
+    azure-mgmt-compute
+    azure-mgmt-resource
+    py-pure-client
+
+additional_build_steps:
+  prepend_base: |
+    # Build prerequisites for ansible-pylibssh and other compiled deps
+    RUN dnf install -y \
+        python3-devel \
+        gcc \
+        libffi-devel \
+        openssl-devel \
+        libssh-devel \
+        make && \
+        dnf clean all
+  append_galaxy: |
+    # Install Azure collection's Python requirements after Galaxy
+    RUN python -m pip install --upgrade pip && \
+        python -m pip install --no-cache-dir -r \
+        /usr/share/ansible/collections/ansible_collections/azure/azcollection/requirements.txt
+  append_final: |
+    # Install Azure CLI so auth_source=cli works inside the EE
+    RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc && \
+        echo -e "[azure-cli]\nname=Azure CLI\nbaseurl=https://packages.microsoft.com/yumrepos/azure-cli\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/azure-cli.repo && \
+        dnf install -y azure-cli && \
+        dnf clean all
+

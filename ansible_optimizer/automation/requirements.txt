@@ -1,0 +1,6 @@
+# Kubernetes Validation Automation Requirements
+# Install with: pip install -r requirements.txt
+
+# MCP Server Dependencies
+mcp>=0.9.1
+anyio>=4.0.0

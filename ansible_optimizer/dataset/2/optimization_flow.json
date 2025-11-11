@@ -1,0 +1,5 @@
+{
+  "instruction": "Fix the CronJob so it runs every night at 02:30 UTC, forbids concurrent runs, limits history jobs, and adds CPU/memory requests plus a ConfigMap volume for scripts.",
+  "original_code": "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly-cleanup\nspec:\n  jobTemplate:\n    spec:\n      template:\n        spec:\n          containers:\n            - name: cleanup\n              image: busybox:latest\n              command:\n                - sh\n                - -c\n                - echo cleaning\n          restartPolicy: Never\n",
+  "original_manifest": "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly-cleanup\nspec:\n  jobTemplate:\n    spec:\n      template:\n        spec:\n          containers:\n            - name: cleanup\n              image: busybox:latest\n              command:\n                - sh\n                - -c\n                - echo cleaning\n          restartPolicy: Never\n"
+}

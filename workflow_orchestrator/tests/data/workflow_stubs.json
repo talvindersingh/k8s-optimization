@@ -1,0 +1,59 @@
+{
+  "name": "stub-workflow",
+  "code_type": "test",
+  "vars": {
+    "iteration": 0,
+    "max_iterations": 2
+  },
+  "flow": [
+    {
+      "id": "run",
+      "type": "execute",
+      "node": "workflow_orchestrator.tests.stub_nodes.SimpleEvaluator",
+      "inputs": {
+        "value": "{{iteration}}"
+      },
+      "outputs": {
+        "result": "optimization_flow.runs.{{iteration}}",
+        "iteration_key": "{{iteration}}"
+      }
+    },
+    {
+      "id": "increment",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{iteration}}",
+          "condition": {
+            "python": "value >= {{max_iterations}}"
+          },
+          "goto": "END"
+        }
+      ],
+      "else": "loop"
+    },
+    {
+      "id": "loop",
+      "type": "execute",
+      "node": "workflow_orchestrator.tests.stub_nodes.increment_iteration",
+      "inputs": {},
+      "outputs": {
+        "result": "vars.iteration"
+      }
+    },
+    {
+      "id": "repeat",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{iteration}}",
+          "condition": {
+            "python": "value < {{max_iterations}}"
+          },
+          "goto": "run"
+        }
+      ],
+      "else": "END"
+    }
+  ]
+}

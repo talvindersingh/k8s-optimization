@@ -1,0 +1,239 @@
+{
+  "name": "eval-validate-transform-loop",
+  "code_type": "kubernetes",
+  "vars": {
+    "subjective_pass_score": 0.9,
+    "max_subjective_iterations": 2,
+    "subjective_iteration_count": 1,
+    "last_subjective_iteration": 0,
+    "max_subj_code_iterations": 1,
+    "subj_code_iteration_count": 1,
+    "max_validation_iterations": 4,
+    "validation_iteration_count": 1,
+    "last_validation_result_key": "",
+    "max_code_iterations": 3,
+    "code_iteration_count": 1,
+    "latest_manifest_key": "original_manifest"
+  },
+  "flow": [
+    {
+      "id": "resume-subj-check",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "optimization_flow.subjective_evaluation_{{last_subjective_iteration}}.scores.weighted_overall_score",
+          "condition": {
+            "op": ">=",
+            "compare_to": "{{subjective_pass_score}}"
+          },
+          "goto": "resume-validation-check"
+        },
+        {
+          "value": "{{last_subjective_iteration}}",
+          "condition": {
+            "op": ">=",
+            "compare_to": "{{max_subjective_iterations}}"
+          },
+          "goto": "resume-validation-check"
+        }
+      ],
+      "else": "subjective-eval"
+    },
+    {
+      "id": "subjective-eval",
+      "type": "execute",
+      "skipIfOutputPresent": true,
+      "node": "ansible_optimizer.ansible_nodes.subjective_evaluator_agent.SubjectiveEvaluatorNode",
+      "inputs": {
+        "instruction": "instruction",
+        "manifest": "{{latest_manifest_key}}"
+      },
+      "outputs": {
+        "result": "optimization_flow.subjective_evaluation_{{subjective_iteration_count}}",
+        "instruction_key": "instruction",
+        "manifest_key": "{{latest_manifest_key}}",
+        "iteration_index": "{{subjective_iteration_count}}",
+        "vars.last_subjective_iteration": "{{subjective_iteration_count}}",
+        "vars.subjective_iteration_count": "{{++subjective_iteration_count}}"
+      }
+    },
+    {
+      "id": "check-subjective-pass",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "optimization_flow.subjective_evaluation_{{last_subjective_iteration}}.scores.weighted_overall_score",
+          "condition": {
+            "op": ">=",
+            "compare_to": "{{subjective_pass_score}}"
+          },
+          "goto": "resume-validation-check"
+        },
+        {
+          "value": "{{subj_code_iteration_count}}",
+          "condition": {
+            "op": ">",
+            "compare_to": "{{max_subj_code_iterations}}"
+          },
+          "goto": "resume-validation-check"
+        }
+      ],
+      "else": "subj-manifest-optimizer"
+    },
+    {
+      "id": "subj-manifest-optimizer",
+      "type": "execute",
+      "skipIfOutputPresent": true,
+      "node": "ansible_optimizer.ansible_nodes.kubernetes_manifest_optimizer_agent.KubernetesManifestOptimizerNode",
+      "inputs": {
+        "instruction": "instruction",
+        "before_manifest": "{{latest_manifest_key}}",
+        "feedback": "optimization_flow.subjective_evaluation_{{last_subjective_iteration}}.scores"
+      },
+      "outputs": {
+        "result": "optimization_flow.improved_manifest_B{{subj_code_iteration_count}}",
+        "instruction_key": "instruction",
+        "before_manifest_key": "{{latest_manifest_key}}",
+        "feedback_key": "optimization_flow.subjective_evaluation_{{last_subjective_iteration}}.scores",
+        "iteration_index": "{{subj_code_iteration_count}}",
+        "vars.latest_manifest_key": "optimization_flow.improved_manifest_B{{subj_code_iteration_count}}.code",
+        "vars.subj_code_iteration_count": "{{++subj_code_iteration_count}}"
+      }
+    },
+    {
+      "id": "loop-continue-subjective",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{subjective_iteration_count}}",
+          "condition": {
+            "op": ">",
+            "compare_to": "{{max_subjective_iterations}}"
+          },
+          "goto": "resume-validation-check"
+        }
+      ],
+      "else": "resume-subj-check"
+    },
+    {
+      "id": "resume-validation-check",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{last_validation_result_key}}",
+          "condition": {
+            "python": "not value"
+          },
+          "goto": "objective-validation"
+        },
+        {
+          "value": "{{last_validation_result_key}}.validations_result",
+          "condition": {
+            "python": "value == 'pass'"
+          },
+          "goto": "END"
+        },
+        {
+          "value": "{{last_validation_result_key}}.manifest_fix_required",
+          "condition": {
+            "python": "value in (False, 'False', 'false', 'FALSE')"
+          },
+          "goto": "END"
+        },
+        {
+          "value": "{{validation_iteration_count}}",
+          "condition": {
+            "op": ">",
+            "compare_to": "{{max_validation_iterations}}"
+          },
+          "goto": "END"
+        }
+      ],
+      "else": "objective-validation"
+    },
+    {
+      "id": "objective-validation",
+      "type": "execute",
+      "skipIfOutputPresent": true,
+      "node": "ansible_optimizer.ansible_nodes.kubernetes_validation_analyzer.KubernetesValidationAnalyzerNode",
+      "inputs": {
+        "instruction": "instruction",
+        "manifest": "{{latest_manifest_key}}",
+        "max_turns": "8"
+      },
+      "outputs": {
+        "result": "optimization_flow.objective_validation_{{validation_iteration_count}}",
+        "instruction_key": "instruction",
+        "manifest_key": "{{latest_manifest_key}}",
+        "iterations": "{{validation_iteration_count}}",
+        "vars.last_validation_result_key": "optimization_flow.objective_validation_{{validation_iteration_count}}",
+        "vars.validation_iteration_count": "{{++validation_iteration_count}}"
+      }
+    },
+    {
+      "id": "check-validation-result",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{last_validation_result_key}}.validations_result",
+          "condition": {
+            "python": "value in ('pass', 'Pass', 'PASS')"
+          },
+          "goto": "END"
+        },
+        {
+          "value": "{{last_validation_result_key}}.manifest_fix_required",
+          "condition": {
+            "python": "value in (False, 'False', 'false', 'FALSE')"
+          },
+          "goto": "END"
+        },
+        {
+          "value": "{{code_iteration_count}}",
+          "condition": {
+            "op": ">",
+            "compare_to": "{{max_code_iterations}}"
+          },
+          "goto": "END"
+        }
+      ],
+      "else": "manifest-optimizer"
+    },
+    {
+      "id": "manifest-optimizer",
+      "type": "execute",
+      "skipIfOutputPresent": true,
+      "node": "ansible_optimizer.ansible_nodes.kubernetes_manifest_optimizer_agent.KubernetesManifestOptimizerNode",
+      "inputs": {
+        "instruction": "instruction",
+        "before_manifest": "{{latest_manifest_key}}",
+        "feedback": "{{last_validation_result_key}}.objective_validations",
+        "max_turns": "12"
+      },
+      "outputs": {
+        "result": "optimization_flow.improved_manifest_C{{code_iteration_count}}",
+        "instruction_key": "instruction",
+        "before_manifest_key": "{{latest_manifest_key}}",
+        "feedback_key": "{{last_validation_result_key}}.objective_validations",
+        "iterations": "{{code_iteration_count}}",
+        "vars.latest_manifest_key": "optimization_flow.improved_manifest_C{{code_iteration_count}}.code",
+        "vars.code_iteration_count": "{{++code_iteration_count}}"
+      }
+    },
+    {
+      "id": "loop-continue-validation",
+      "type": "conditional",
+      "branches": [
+        {
+          "value": "{{validation_iteration_count}}",
+          "condition": {
+            "op": ">",
+            "compare_to": "{{max_validation_iterations}}"
+          },
+          "goto": "END"
+        }
+      ],
+      "else": "resume-validation-check"
+    }
+  ]
+}

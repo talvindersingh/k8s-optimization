@@ -1,0 +1,6 @@
+{
+  "instruction": "Stub instruction",
+  "original_code": "print('hello')",
+  "original_manifest": "apiVersion: v1",
+  "optimization_flow": {}
+}
